@@ -1,8 +1,0 @@
-﻿  tests.cpp
-C:\Users\Ваня\source\repos\RawContainer\tests.cpp(11,1): error C2220: the following warning is treated as an error
-C:\Users\Ваня\source\repos\RawContainer\tests.cpp(11,1): warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
-C:\Users\Ваня\source\repos\RawContainer\tests.cpp(11,1): warning C5045: C:\Users\Ваня\source\repos\RawContainer\tests.cpp(10) : note: index 'i' range checked by comparison on this line
-C:\Users\Ваня\source\repos\RawContainer\tests.cpp(11,1): warning C5045: C:\Users\Ваня\source\repos\RawContainer\tests.cpp(11) : note: feeds call on this line
-C:\Users\Ваня\source\repos\RawContainer\RawBase.h(149,1): warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
-C:\Users\Ваня\source\repos\RawContainer\RawBase.h(149,1): warning C5045: C:\Users\Ваня\source\repos\RawContainer\RawBase.h(148) : note: index 'new_size' range checked by comparison on this line
-C:\Users\Ваня\source\repos\RawContainer\RawBase.h(149,1): warning C5045: C:\Users\Ваня\source\repos\RawContainer\RawBase.h(149) : note: feeds call on this line
