@@ -69,6 +69,7 @@ public:
 			data = newData;
 			size = other.size;
 			capacity = other.capacity;
+			data = normalize_capacity();
 		}
 		catch (std::bad_alloc& e) {
 			std::cerr << e.what() << std::endl;
@@ -149,6 +150,7 @@ public:
 			std::memset(data + size, 0, (new_size - size) * sizeof(T));
 		size = new_size;
 	}
+
 	void reserve(size_t reserve_size) {
 		if(reserve_size < capacity){
 			return;
@@ -161,6 +163,7 @@ public:
 				throw std::bad_alloc();
 			}
 			data = temp;
+			capacity = reserve_size;
 		}
 		catch (std::bad_alloc& err) {
 			std::cerr << err.what() << std::endl;
@@ -171,13 +174,32 @@ public:
 			throw;
 		}
 	}
+
+	class Pointer {
+	private:
+		T* ptr;
+	public:
+		Pointer(T* p = nullptr)
+			: ptr(p) {
+		}
+
+
+
+		~Pointer() {
+			if (ptr) {
+				free(ptr);
+			}
+		}
+	};
+
 	RawVector copy() {
 		RawVector<T> new_vector(size);
 		std::memcpy(new_vector.data, data, size * sizeof(T));
 		return new_vector;
 	}
 	~RawVector() {
-		free(data);
+		if(data)
+			free(data);
 		std::cout << "Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
 	};
 };
