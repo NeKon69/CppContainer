@@ -304,9 +304,6 @@ public:
 	public:
 		Iterator(T* ptr_) : ptr(ptr_) {};
 
-		bool operator ==(Iterator& Iteratorr) { return ptr == Iteratorr.ptr; }
-		bool operator !=(Iterator& Iteratorr) { return ptr != Iteratorr.ptr; }
-
 		T& operator *() const { return *ptr; }
 		T* operator ->() const { return ptr; }
 
@@ -342,9 +339,6 @@ public:
 	public:
 		ConstIterator(const T* ptr_) : ptr(ptr_) {}
 
-		bool operator==(const ConstIterator& other) const { return ptr == other.ptr; }
-		bool operator!=(const ConstIterator& other) const { return ptr != other.ptr; }
-
 		const T& operator*() const { return *ptr; }
 		const T* operator->() const { return ptr; }
 
@@ -358,10 +352,14 @@ public:
 		bool operator>(const ConstIterator& other) const { return ptr > other.ptr; }
 		bool operator<=(const ConstIterator& other) const { return ptr <= other.ptr; }
 		bool operator>=(const ConstIterator& other) const { return ptr >= other.ptr; }
+		bool operator==(const ConstIterator& other) const { return ptr == other.ptr; }
+		bool operator!=(const ConstIterator& other) const { return ptr != other.ptr; }
 	};
 
 	using const_iterator = ConstIterator;
 
+	const_iterator begin() const { return const_iterator(data); }
+	const_iterator end() const { return const_iterator(data + size); }
 	const_iterator cbegin() const { return const_iterator(data); }
 	const_iterator cend() const { return const_iterator(data + size); }
 	const_iterator crbegin() const { return size > 0 ? const_iterator(data + size - 1) : const_iterator(data); }
