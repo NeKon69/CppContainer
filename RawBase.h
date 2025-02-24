@@ -10,9 +10,10 @@ private:
 	size_t size = 0;
 	size_t capacity = 1;
 	T* normalize_capacity() {
-		capacity = std::max(capacity * 2, size + 1); 
+		while (size >= capacity) capacity *= 2;
 		T* newData = (T*)malloc(sizeof(T) * capacity);
 		if (!newData) {
+			std::cout << "BAD ALLOC!!!!!!!\n";
 			throw std::bad_alloc();
 		}
 		if (data) {
@@ -21,14 +22,6 @@ private:
 		return newData;
 	}
 
-	T* normalize_capacity_with_initializng() {
-		capacity = std::max(capacity * 2, size + 1);
-		T* newData = (T*)calloc(size, sizeof(T));
-		if (!newData) {
-			throw std::bad_alloc();
-		}
-		return newData;
-	}
 public:
 	RawVector() {
 		if (data)
@@ -37,11 +30,9 @@ public:
 	};
 	RawVector(size_t size_) : size(size_), capacity(1), data(nullptr) {
 		try {
-			auto newData = normalize_capacity_with_initializng();
+			auto newData = normalize_capacity();
 			data = newData;
-			newData = normalize_capacity();
-			free(data);
-			data = newData;
+			std::memset(data, 0, size_ * sizeof(T));
 		}
 		catch (std::bad_alloc& e) {
 			std::cerr << e.what() << std::endl;
@@ -107,10 +98,12 @@ public:
 		return *this;
 	}
 	void push_back(const T& elem) {
+		if (!data)
+			data = (T*)malloc(sizeof(T));
 		try {
 			if (capacity <= size) {
 				capacity *= 2;
-				auto newdata = (T*)std::realloc(data, capacity  * sizeof(T));
+				auto newdata = (T*)std::realloc(data, capacity * sizeof(T));
 				if (!newdata) {
 					std::cerr << "Couldn't reserve that much space ERR" << std::endl;
 					free(data);
@@ -128,25 +121,32 @@ public:
 	}
 
 	void push_back(T&& elem) {
+		if (!data)
+			data = (T*)malloc(sizeof(T));
 		try {
 			if (capacity <= size) {
 				auto newData = normalize_capacity();
-				std::memcpy(newData, data, size * sizeof(T));
+				if (data) std::memcpy(newData, data, size * sizeof(T));
 				if (data != nullptr && newData != data) {
+					std::cout << data << std::endl;
 					free(data);
 					data = nullptr;
 				}
 				data = newData;
 			}
-			data[size] = std::move(elem);
-			++size;
+			if (data) {
+				data[size] = std::move(elem);
+				++size;
+			}
+			else {
+				throw std::bad_alloc();
+			}
 		}
 		catch (...) {
 			std::cerr << "Something happened in push_back" << std::endl;
 			throw;
 		}
 	}
-
 	T& at(const size_t index) {
 		if (index >= size || index < 0) {
 			throw std::out_of_range("Index out of range");
@@ -187,10 +187,11 @@ public:
 			throw std::bad_alloc();
 		}
 		data = new_data;
-		std::cout << data + size << std::endl;
+		std::cout << size << std::endl;
 		if (new_size > size) { std::memset(data + size, 0, (new_size - size) * sizeof(T)); }
 		size = new_size;
 		auto newdata = normalize_capacity();
+		free(data);
 		data = newdata;
 	}
 
@@ -225,6 +226,7 @@ public:
 		}
 		size = 0;
 		capacity = 1;
+		data = (T*)malloc(sizeof(T));
 	}
 
 	void shrink_to_fit() {
@@ -303,9 +305,15 @@ public:
 		T* ptr;
 	public:
 		Iterator(T* ptr_) : ptr(ptr_) {};
-
+		bool operator ==(Iterator& Iteratorr) { return ptr == Iteratorr.ptr; }
+		bool operator !=(Iterator& Iteratorr) { return ptr != Iteratorr.ptr; }
 		T& operator *() const { return *ptr; }
 		T* operator ->() const { return ptr; }
+
+		Iterator& operator +=(size_t n) { ptr += n; return *this; }
+		Iterator& operator -=(size_t n) { ptr -= n; return *this; }
+		Iterator operator +(size_t n) const { return Iterator(ptr + n); }
+		Iterator operator -(size_t n) const { return Iterator(ptr - n); }
 
 		Iterator& operator ++() { ++ptr; return *this; }
 		Iterator operator ++(int) { Iterator tmp = *this; ++ptr; return tmp; }
@@ -315,8 +323,8 @@ public:
 
 		bool operator==(const Iterator& other) const { return ptr == other.ptr; }
 		bool operator!=(const Iterator& other) const { return ptr != other.ptr; }
-		bool operator< (const Iterator& other) const { return ptr <  other.ptr; }
-		bool operator> (const Iterator& other) const { return ptr >  other.ptr; }
+		bool operator< (const Iterator& other) const { return ptr < other.ptr; }
+		bool operator> (const Iterator& other) const { return ptr > other.ptr; }
 		bool operator<=(const Iterator& other) const { return ptr <= other.ptr; }
 		bool operator>=(const Iterator& other) const { return ptr >= other.ptr; }
 
@@ -338,9 +346,13 @@ public:
 		const T* ptr;
 	public:
 		ConstIterator(const T* ptr_) : ptr(ptr_) {}
-
 		const T& operator*() const { return *ptr; }
 		const T* operator->() const { return ptr; }
+
+		ConstIterator& operator+=(size_t n) { ptr += n; return *this; }
+		ConstIterator& operator-=(size_t n) { ptr -= n; return *this; }
+		ConstIterator operator+(size_t n) const { return ConstIterator(ptr + n); }
+		ConstIterator operator-(size_t n) const { return ConstIterator(ptr - n); }
 
 		ConstIterator& operator++() { ++ptr; return *this; }
 		ConstIterator operator++(int) { ConstIterator tmp = *this; ++ptr; return tmp; }
@@ -357,9 +369,8 @@ public:
 	};
 
 	using const_iterator = ConstIterator;
-
-	const_iterator begin() const { return const_iterator(data); }
-	const_iterator end() const { return const_iterator(data + size); }
+	const_iterator begin() const { return ConstIterator(data); }
+	const_iterator end() const { return ConstIterator(data + size); }
 	const_iterator cbegin() const { return const_iterator(data); }
 	const_iterator cend() const { return const_iterator(data + size); }
 	const_iterator crbegin() const { return size > 0 ? const_iterator(data + size - 1) : const_iterator(data); }
@@ -377,10 +388,10 @@ public:
 		return new_vector;
 	}
 
-	bool empty() {return size == 0;}
+	bool empty() { return size == 0; }
 
 	~RawVector() {
 		if (data) { std::cout << "Freeing memory at address: " << static_cast<void*>(data) << " | "; free(data); }
 		std::cout << "Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
-	};
+	}
 };
