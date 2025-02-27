@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <cstdlib>
 #include <iostream>
 #include <cstring>
@@ -6,9 +6,30 @@
 template<typename T>
 class RawVector {
 private:
+	/// BEGINNING
+	/// *****************************************************************************************************************************
+	/// PRIVATE MEMBERS EXPLANATION
+	/// data - the object that stores the capacity elements typenamed T (about capacity lower ↓)
+	/// 
+	///	size - is the element that allows the access to the amount of size elements, kind of hiding the actually used memory
+	/// 
+	/// capacity - is the amount of memory that is reserved for the data
+	/// *****************************************************************************************************************************
+	/// END
+
 	T* data = nullptr;
 	size_t size = 0;
 	size_t capacity = 1;
+
+	/// BEGINNING
+	/// ********************************************************************************************************************************************************************
+	/// PRIVATE MEMBERS EXPLANATION CONTINUED
+	/// normalize_capacity - function, that if not enough space doing a reallocation with copying all of the elements from data, will be used a lot later
+	/// 
+	/// returns a pointer to new copied and reallocated data (P.S. IT DOESNT ACTUALLY REALLOC IT, JUST COPYING ALL OF THE ELEMENTS FROM CURR DATA, AND RESERVES NEW)
+	/// ********************************************************************************************************************************************************************
+	/// END
+
 	T* normalize_capacity() {
 		while (size >= capacity) capacity *= 2;
 		T* newData = (T*)malloc(sizeof(T) * capacity);
@@ -23,11 +44,20 @@ private:
 	}
 
 public:
-	RawVector() {
-		if (data)
-			free(data);
+	/// BEGINNING
+	/// *************************************************************************************************
+	/// DEAFULT CONSTRUCTOR
+	/// usual conctructor that is called than no arguments was gvien, reserves space for 1 element
+	/// *************************************************************************************************
+	/// END
+	RawVector() : size(0), capacity(1), data(nullptr) {
 		data = (T*)malloc(sizeof(T));
 	};
+
+	/// BEGINNING
+	/// conctructor that is called when size is given, reserves space for size elements
+	/// END
+
 	RawVector(size_t size_) : size(size_), capacity(1), data(nullptr) {
 		try {
 			auto newData = normalize_capacity();
@@ -40,6 +70,16 @@ public:
 			throw;
 		}
 	};
+
+	/// BEGINNING
+	/// ************************************************************************************************************************************************
+	/// COPY CONSTRUCTOR OVERLOAD
+	/// conctructor that is called when size and value are given, reserves space for size elements and fills them with value from previous vector
+	/// 
+	/// IMPORTANT - doesn't copy the elements that are outside the size, but actually reserved
+	/// ************************************************************************************************************************************************
+	/// END
+
 	RawVector(const RawVector& other) : size(other.size), capacity(other.capacity) {
 		try {
 			T* newData = (T*)calloc(capacity, sizeof(T));
@@ -56,6 +96,15 @@ public:
 		}
 	}
 
+	/// BEGINNING
+	/// **********************************************************************************************************
+	/// CONSTRUCTOR WITH MOVE SEMANTIC
+	/// conctructor that is called when given an object of the class with move semantic
+	/// 
+	/// takes all of the data from it, as well as size and capacity, leaving it without data nor size/capacity
+	/// **********************************************************************************************************
+	/// END
+
 	RawVector(RawVector&& other) noexcept
 		: data(other.data), size(other.size), capacity(other.capacity) {
 
@@ -63,6 +112,15 @@ public:
 		other.size = 0;
 		other.capacity = 0;
 	}
+
+	/// BEGINNING
+	/// ***********************************************************************************************
+	/// COPY OPERATOR OVERLOAD
+	/// uses this function than already a created object is given
+	/// 
+	/// data of the given object being copied to the curr object (WITHOUT ACTUALLY DESTROYING IT)
+	/// ***********************************************************************************************
+	/// END
 
 	RawVector& operator=(const RawVector& other) {
 		if (this == &other) {
@@ -85,6 +143,16 @@ public:
 		}
 		return *this;
 	}
+
+	/// BEGINNING
+	/// ****************************************************************************************************************
+	/// MOVE_SEMANTIC OPERATOR OVERLOAD
+	/// this function being called then the object is given with move semantic
+	/// 
+	/// same logic as in the CONSTRUCTOR with move semantic, just with freeing the data of the curr object firstly
+	/// ****************************************************************************************************************
+	/// END
+
 	RawVector& operator=(RawVector&& other) noexcept {
 		if (this != &other) {
 			free(data);
@@ -97,6 +165,18 @@ public:
 		}
 		return *this;
 	}
+
+	/// BEGINNING
+	/// ***************************************************************************************************************************************
+	/// PUSH_BACK FUNCTIONS
+	/// next two functions are used to add elements to the vector
+	/// 
+	/// nothing special, just assigning to the data[size] element given, but if there is no enough memory additionally reserves it on-side
+	/// 
+	/// difference between these two, only with the fact that the second one is using moved object as a parameter
+	/// ***************************************************************************************************************************************
+	/// END
+
 	void push_back(const T& elem) {
 		if (!data)
 			data = (T*)malloc(sizeof(T));
@@ -147,6 +227,16 @@ public:
 			throw;
 		}
 	}
+
+	/// BEGINNING
+	/// *******************************************************************************************************
+	/// INDEXING FUNCTIONS
+	/// next 4 functions used to get element by index, with the check on the "at" ones, and without on []
+	/// 
+	/// const / non-const functions written
+	/// *******************************************************************************************************
+	/// END
+
 	T& at(const size_t index) {
 		if (index >= size || index < 0) {
 			throw std::out_of_range("Index out of range");
@@ -169,12 +259,30 @@ public:
 		return data[index];
 	}
 
+	/// BEGINNING
+	/// *********************************************************************
+	/// GETTER FUNCTIONS
+	/// next 2 functions return current data as it is, nothing fancy
+	/// *********************************************************************
+	/// END
+
 	size_t get_size() const {
 		return size;
 	}
 	size_t get_capacity() const {
 		return capacity;
 	}
+
+	/// BEGINNING
+	/// *********************************************************************************************************************************************
+	/// RESIZE FUNCTION
+	/// this one is the one that actually start top get a bit hard, first, if the size is smaller than the new size, it just changes the new size
+	/// 
+	/// if it isn't, it reallocates the memory with the new size, and if the new size is bigger than the old one, it fills the new memory with 0
+	/// 
+	/// also you should keep here an eye on memory managment, as it is a bit tricky
+	/// *********************************************************************************************************************************************
+	/// END
 
 	void resize(size_t new_size) {
 		if (new_size < size) {
@@ -194,6 +302,13 @@ public:
 		free(data);
 		data = newdata;
 	}
+
+	/// BEGINNING
+	/// *********************************************************************************************************************************************
+	/// RESERVE FUNCTION
+	/// this function does a reserve operation, same as in the vector, it just reserves more space, without actually revealing those elements
+	/// *********************************************************************************************************************************************
+	/// END
 
 	void reserve(size_t reserve_size) {
 		if (reserve_size < capacity) {
@@ -219,6 +334,13 @@ public:
 		}
 	}
 
+	/// BEGINNING
+	/// **************************************************************************************
+	/// CLEAR FUNCTION
+	/// frees memory, leaving vector with no data, and only 1 reserved undefined element
+	/// **************************************************************************************
+	/// END
+
 	void clear() {
 		if (data) {
 			free(data);
@@ -228,6 +350,15 @@ public:
 		capacity = 1;
 		data = (T*)malloc(sizeof(T));
 	}
+
+	/// BEGINNING
+	/// ************************************************************************************************************************************************
+	/// SHRINK_TO_FIT FUNCTION
+	/// in my opinion kinda useless, especially if you call it a lot in for loop for example
+	/// 
+	/// but what it does, is just shrinking the memory to the size, leaving elements after size-element deleted, and not reserving memory for them
+	/// ************************************************************************************************************************************************
+	/// END
 
 	void shrink_to_fit() {
 		if (size != capacity && size != 0) {
@@ -249,12 +380,31 @@ public:
 		if (size == 0) { free(data); data = nullptr; }
 	}
 
+	/// BEGINNING
+	/// ************************************************************************************************************
+	/// POP_BACK FUNCTION
+	/// this one works a bit different from what it looks like to user
+	/// 
+	/// instead of actually deleting it from the back, we just make size smaller, so this element is not visible
+	/// ************************************************************************************************************
+	/// END
+
 	void pop_back() {
 		if (size == 0) {
 			throw std::out_of_range("Vector is empty");
 		}
 		if (--size == 0) { free(data); data = nullptr; }
 	}
+
+	/// BEGINNING
+	/// **************************************************************************************************
+	/// INSERT FUNCTION
+	/// insert value on the given index, moving the elements via memmove function
+	/// 
+	/// there are 2 overloaded functions, that accept object, and that accept object with move semantic
+	/// **************************************************************************************************
+	/// TASKS: ADD ITERATORS ACCEPTING FUNCTIONS
+	/// END
 
 	void insert(size_t index, const T& value) {
 		if (index > size) {
@@ -286,6 +436,14 @@ public:
 		++size;
 	}
 
+	/// BEGINNING
+	/// **************************************************************************************************
+	/// ERASE FUNCTIONS
+	/// erases number on the index of the  vector, uses slide by 1 to move objects before given index
+	/// **************************************************************************************************
+	/// TASKS: ADD ITERATORS ACCEPTING FUNCTIONS
+	/// END
+
 	void erase(size_t index) {
 		if (index >= size || index < 0) {
 			throw std::out_of_range("Index out of range");
@@ -294,11 +452,29 @@ public:
 		if (--size == 0) { free(data); data = nullptr; }
 	}
 
+	/// BEGINNING
+	/// *************************************************************
+	/// SWAP FUNCTION
+	/// just swaps the data, size and capacity of the two objects
+	/// *************************************************************
+	/// END
+
+
 	void swap(RawVector& other) noexcept {
 		std::swap(data, other.data);
 		std::swap(size, other.size);
 		std::swap(capacity, other.capacity);
 	}
+
+	/// BEGINNING
+	/// ***************************************************************************************************************
+	/// ITERATORS
+	/// next goes two classes of itreators with the almost the same logic, but with the const and non-const pointer
+	/// 
+	/// added mostly used operators, like ++, --, *, ->, extc.
+	/// ***************************************************************************************************************
+	/// TASKS: ADD INHERITANCE FROM ITERATORBASE CLASS TO ITERATOR AND CONST_ITERATOR
+	/// END
 
 	class Iterator {
 	private:
@@ -381,6 +557,15 @@ public:
 	const T& back() const { return *crbegin(); }
 	const T& front() const { return *cbegin(); }
 
+	/// BEGINNING
+	/// ***************************************************************************************************************
+	/// COPY FUNCTION
+	/// idk why i created this, but it copies data from curr vector, and retuns it
+	/// 
+	/// NOTE: RETURNS COMPLETELY NEW DATA, NEW POINTER, AND IT ALSO DONT HAVE ANY ACOSIANTIONS WITH THE OLD VECTOR
+	/// ***************************************************************************************************************
+	/// END
+
 	RawVector copy() {
 		RawVector<T> new_vector(size);
 		new_vector.reserve(capacity);
@@ -388,7 +573,15 @@ public:
 		return new_vector;
 	}
 
+	/// CHECKS IF OBJECT IS EMPTY, IF SIZE VARIABLE ISN'T HANDELED GOOD ENOUGH, CAN CAUSE CRUSH
 	bool empty() { return size == 0; }
+
+	/// BEGINNING
+	/// ***********************************************************************************************************************************
+	/// DESTRUCTOR
+	/// if data is already empty, or was freed before, can cause crush, so you should either not free it before, or make it a nullptr
+	/// ***********************************************************************************************************************************
+	/// END
 
 	~RawVector() {
 		if (data) { std::cout << "Freeing memory at address: " << static_cast<void*>(data) << " | "; free(data); }
