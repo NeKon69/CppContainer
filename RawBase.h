@@ -94,7 +94,6 @@ private:
 		}
 		if (data) {
 			std::memcpy(newData, data, size * sizeof(T));
-			free(data);
 		}
 		return newData;
 	}
@@ -646,7 +645,7 @@ public:
 	/// END
 
 	~RawVectorTriv() override {
-		std::cout << "RawVectorTriv Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
+		std::cout << "RawVectorTriv Object Destroyed next comes memory freeing" << std::endl;
 	}
 };
 
