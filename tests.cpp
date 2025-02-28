@@ -35,7 +35,7 @@ TestResult test_push_back(size_t num_elements, int runs = 10) {
         vec_total += std::chrono::duration<double, std::milli>(end - start).count();
 
         start = std::chrono::high_resolution_clock::now();
-        RawVector<int> raw_vec;
+        vector<int> raw_vec;
         for (size_t i = 0; i < num_elements; ++i) raw_vec.push_back(i);
         end = std::chrono::high_resolution_clock::now();
         raw_vec_total += std::chrono::duration<double, std::milli>(end - start).count();
@@ -46,7 +46,7 @@ TestResult test_push_back(size_t num_elements, int runs = 10) {
 // Функция для замера времени operator[]
 TestResult test_access(size_t num_elements, int runs = 10) {
     std::vector<int> vec(num_elements);
-    RawVector<int> raw_vec; raw_vec.resize(num_elements);
+    vector<int> raw_vec; raw_vec.resize(num_elements);
     std::random_device rd; std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, num_elements - 1);
 
