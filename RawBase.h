@@ -22,6 +22,8 @@ private:
 	size_t size = 0;
 	size_t capacity = 0;
 
+	virtual T* normalize_capacity() = 0;
+
 	friend class RawVectorTriv<T>;
 	friend class RawVectorNonTriv<T>;
 public:
@@ -51,17 +53,89 @@ public:
 	virtual void shrink_to_fit() = 0;
 	virtual void pop_back() = 0;
 
+	/// BEGINNING
+	/// ***************************************************************************************************************
+	/// ITERATORS
+	/// next goes class of itreators that uses "using" word to represent both const and non-const iterators
+	///
+	/// added mostly used operators, like ++, --, *, ->, extc.
+	/// ***************************************************************************************************************
+	/// TASKS ADD ADDITIONAL CLASS FOR R ITERATORS
+	/// END
+
+	template<typename iter>
+	class IteratorBase {
+	private:
+		iter* ptr;
+	public:
+		IteratorBase(iter* ptr_) : ptr(ptr_) {};
+
+		iter& operator *() const { return *ptr; }
+		iter* operator ->() const { return ptr; }
+
+		IteratorBase& operator +=(size_t n) { ptr += n; return *this; }
+		IteratorBase& operator -=(size_t n) { ptr -= n; return *this; }
+
+		IteratorBase operator +(size_t n) const { return IteratorBase(ptr + n); }
+
+		IteratorBase operator -(size_t n) const { return IteratorBase(ptr - n); }
+		size_t operator -(IteratorBase iter) const { return ptr - iter.ptr; }
+
+		IteratorBase& operator ++() { ++ptr; return *this; }
+		IteratorBase operator ++(int) { IteratorBase tmp = *this; ++ptr; return tmp; }
+
+		IteratorBase& operator --() { --ptr; return *this; }
+		IteratorBase operator --(int) { IteratorBase tmp = *this; ++ptr; return tmp; }
+
+		bool operator==(const IteratorBase& other) const { return ptr == other.ptr; }
+		bool operator!=(const IteratorBase& other) const { return ptr != other.ptr; }
+		bool operator< (const IteratorBase& other) const { return ptr < other.ptr; }
+		bool operator> (const IteratorBase& other) const { return ptr > other.ptr; }
+		bool operator<=(const IteratorBase& other) const { return ptr <= other.ptr; }
+		bool operator>=(const IteratorBase& other) const { return ptr >= other.ptr; }
+	};
+
+	using Iterator = IteratorBase<T>;
+	using const_iterator = IteratorBase<const T>;
+
+	Iterator begin() { return Iterator(data); }
+	Iterator end() { return Iterator(data + size); }
+	Iterator rbegin() { return size > 0 ? Iterator(data + size - 1) : Iterator(data); }
+	Iterator rend() { return Iterator(data - 1); }
+
+	Iterator data_get() { return begin(); }
+
+	T& front() { return *begin(); }
+	T& back() { return *rbegin(); }
+
+	const_iterator begin() const { return const_iterator(data); }
+	const_iterator end() const { return const_iterator(data + size); }
+	const_iterator cbegin() const { return const_iterator(data); }
+	const_iterator cend() const { return const_iterator(data + size); }
+	const_iterator crbegin() const { return size > 0 ? const_iterator(data + size - 1) : const_iterator(data); }
+	const_iterator crend() const { return const_iterator(data - 1); }
+
+	const Iterator data_get() const { return cbegin(); }
+
+	const T& back() const { return *crbegin(); }
+	const T& front() const { return *cbegin(); }
+
+
 	virtual void insert(size_t index, const T& value) = 0;
 	virtual void insert(size_t index, T&& value) = 0;
+	virtual Iterator insert(Iterator pos, const T& value) = 0;
+	virtual Iterator insert(Iterator pos, T&& value) = 0;
 
 	virtual void erase(size_t index) = 0;
+	virtual Iterator erase(Iterator pos) = 0;
+
 	virtual void swap(RawVector<T>& other) noexcept = 0;
+
 };
 
 template<typename T>
 class RawVectorTriv : public RawVector<T> {
 private:
-
 
 	/// BEGINNING
 	/// *****************************************************************************************************************************
@@ -85,7 +159,7 @@ private:
 	/// ********************************************************************************************************************************************************************
 	/// END
 
-	T* normalize_capacity() {
+	T* normalize_capacity() override {
 		while (size >= capacity) capacity *= 2;
 		T* newData = (T*)malloc(sizeof(T) * capacity);
 		if (!newData) {
@@ -104,6 +178,8 @@ protected:
 	using RawVector<T>::capacity;
 
 public:
+	using Iterator = typename RawVector<T>::template IteratorBase<T>;
+	using const_iterator = typename RawVector<T>::template IteratorBase<const T>;
 	RawVectorTriv* clone() const override { return new RawVectorTriv(*this); }
 
 	/// BEGINNING
@@ -112,7 +188,7 @@ public:
 	/// usual conctructor that is called than no arguments was gvien, reserves space for 1 element
 	/// *************************************************************************************************
 	/// END
-	RawVectorTriv() : RawVector<T>() {
+	RawVectorTriv() {
 		data = (T*)malloc(sizeof(T));
 	};
 
@@ -123,7 +199,7 @@ public:
 	/// ***************************************************************************************
 	/// END
 
-	RawVectorTriv(size_t size_) : RawVector<T>() {
+	RawVectorTriv(size_t size_) {
 		size = size_;
 		capacity = 1;
 		try {
@@ -146,7 +222,7 @@ public:
 	/// IMPORTANT - doesn't copy the elements that are outside the size, but actually reserved
 	/// ************************************************************************************************************************************************
 	/// END
-	RawVectorTriv(const RawVectorTriv& other) : RawVector<T>() {
+	RawVectorTriv(const RawVectorTriv& other) {
 		size = other.size;
 		capacity = other.capacity;
 		try {
@@ -172,7 +248,7 @@ public:
 	/// takes all of the data from it, as well as size and capacity, leaving it without data nor size/capacity
 	/// **********************************************************************************************************
 	/// END
-	RawVectorTriv(RawVectorTriv&& other) noexcept : RawVector<T>() {
+	RawVectorTriv(RawVectorTriv&& other) noexcept {
 		data = other.data;
 		size = other.size;
 		capacity = other.capacity;
@@ -441,7 +517,7 @@ public:
 				throw;
 			}
 		}
-		if (size == 0) { free(data); data = nullptr; }
+		if (size == 0) { free(data); data = nullptr; capacity = 0; }
 	}
 
 	/// BEGINNING
@@ -467,7 +543,6 @@ public:
 	///
 	/// there are 2 overloaded functions, that accept object, and that accept object with move semantic
 	/// **************************************************************************************************
-	/// TASKS: ADD ITERATORS ACCEPTING FUNCTIONS
 	/// END
 
 	void insert(size_t index, const T& value) override {
@@ -500,12 +575,45 @@ public:
 		++size;
 	}
 
+	Iterator insert(Iterator pos, const T& value) override {
+		size_t insert_index = pos - Iterator(data);
+
+		if (insert_index > size) {
+			throw std::out_of_range("Index out of range");
+		}
+		if (size == capacity) {
+			auto newData = normalize_capacity();
+			free(data);
+			data = newData;
+		}
+		std::memmove(data + insert_index + 1, data + insert_index, (size - insert_index) * sizeof(T));
+		data[insert_index] = value;
+		++size;
+		return Iterator(data + insert_index);
+	}
+
+	Iterator insert(Iterator pos, T&& value) override {
+		size_t insert_index = pos - Iterator(data);
+
+		if (insert_index > size) {
+			throw std::out_of_range("Index out of range");
+		}
+		if (size == capacity) {
+			auto newData = normalize_capacity();
+			free(data);
+			data = newData;
+		}
+		std::memmove(data + insert_index + 1, data + insert_index, (size - insert_index) * sizeof(T));
+		data[insert_index] = std::move(value);
+		++size;
+		return Iterator(data + insert_index);
+	}
+
 	/// BEGINNING
 	/// **************************************************************************************************
 	/// ERASE FUNCTIONS
 	/// erases number on the index of the  vector, uses slide by 1 to move objects before given index
 	/// **************************************************************************************************
-	/// TASKS: ADD ITERATORS ACCEPTING FUNCTIONS
 	/// END
 
 	void erase(size_t index) override {
@@ -516,6 +624,16 @@ public:
 		if (--size == 0) { free(data); data = nullptr; }
 	}
 
+	Iterator erase(Iterator pos) override {
+		size_t erase_index = pos - Iterator(data);
+		if (erase_index >= size || erase_index < 0) {
+			throw std::out_of_range("Index out of range");
+		}
+		std::memmove(data + erase_index, data + erase_index + 1, (size - erase_index - 1) * sizeof(T));
+		if (--size == 0) { free(data); data = nullptr; }
+		return Iterator(data + erase_index);
+	}
+
 	/// BEGINNING
 	/// *************************************************************
 	/// SWAP FUNCTION
@@ -524,99 +642,10 @@ public:
 	/// END
 
 	void swap(RawVector<T>& other) noexcept override {
-		std::swap(this->data, other.data);
-		std::swap(this->size, other.size);
-		std::swap(this->capacity, other.capacity);
+		std::swap(data, other.data);
+		std::swap(size, other.size);
+		std::swap(capacity, other.capacity);
 	}
-
-	/// BEGINNING
-	/// ***************************************************************************************************************
-	/// ITERATORS
-	/// next goes two classes of itreators with the almost the same logic, but with the const and non-const pointer
-	///
-	/// added mostly used operators, like ++, --, *, ->, extc.
-	/// ***************************************************************************************************************
-	/// TASKS: ADD INHERITANCE FROM ITERATORBASE CLASS TO ITERATOR AND CONST_ITERATOR
-	/// END
-
-	class Iterator {
-	private:
-		T* ptr;
-	public:
-		Iterator(T* ptr_) : ptr(ptr_) {};
-		bool operator ==(Iterator& Iteratorr) { return ptr == Iteratorr.ptr; }
-		bool operator !=(Iterator& Iteratorr) { return ptr != Iteratorr.ptr; }
-		T& operator *() const { return *ptr; }
-		T* operator ->() const { return ptr; }
-
-		Iterator& operator +=(size_t n) { ptr += n; return *this; }
-		Iterator& operator -=(size_t n) { ptr -= n; return *this; }
-		Iterator operator +(size_t n) const { return Iterator(ptr + n); }
-		Iterator operator -(size_t n) const { return Iterator(ptr - n); }
-
-		Iterator& operator ++() { ++ptr; return *this; }
-		Iterator operator ++(int) { Iterator tmp = *this; ++ptr; return tmp; }
-
-		Iterator& operator --() { --ptr; return *this; }
-		Iterator operator --(int) { Iterator tmp = *this; ++ptr; return tmp; }
-
-		bool operator==(const Iterator& other) const { return ptr == other.ptr; }
-		bool operator!=(const Iterator& other) const { return ptr != other.ptr; }
-		bool operator< (const Iterator& other) const { return ptr < other.ptr; }
-		bool operator> (const Iterator& other) const { return ptr > other.ptr; }
-		bool operator<=(const Iterator& other) const { return ptr <= other.ptr; }
-		bool operator>=(const Iterator& other) const { return ptr >= other.ptr; }
-	};
-
-	Iterator begin() { return Iterator(data); }
-	Iterator end() { return Iterator(data + size); }
-	Iterator rbegin() { return size > 0 ? Iterator(data + size - 1) : Iterator(data); }
-	Iterator rend() { return Iterator(data - 1); }
-
-	Iterator data_get() { return begin(); }
-
-	T& front() { return *begin(); }
-	T& back() { return *rbegin(); }
-
-	class ConstIterator {
-	private:
-		const T* ptr;
-	public:
-		ConstIterator(const T* ptr_) : ptr(ptr_) {}
-		const T& operator*() const { return *ptr; }
-		const T* operator->() const { return ptr; }
-
-		ConstIterator& operator+=(size_t n) { ptr += n; return *this; }
-		ConstIterator& operator-=(size_t n) { ptr -= n; return *this; }
-		ConstIterator operator+(size_t n) const { return ConstIterator(ptr + n); }
-		ConstIterator operator-(size_t n) const { return ConstIterator(ptr - n); }
-
-		ConstIterator& operator++() { ++ptr; return *this; }
-		ConstIterator operator++(int) { ConstIterator tmp = *this; ++ptr; return tmp; }
-
-		ConstIterator& operator--() { --ptr; return *this; }
-		ConstIterator operator--(int) { ConstIterator tmp = *this; ++ptr; return tmp; }
-
-		bool operator<(const ConstIterator& other) const { return ptr < other.ptr; }
-		bool operator>(const ConstIterator& other) const { return ptr > other.ptr; }
-		bool operator<=(const ConstIterator& other) const { return ptr <= other.ptr; }
-		bool operator>=(const ConstIterator& other) const { return ptr >= other.ptr; }
-		bool operator==(const ConstIterator& other) const { return ptr == other.ptr; }
-		bool operator!=(const ConstIterator& other) const { return ptr != other.ptr; }
-	};
-
-	using const_iterator = ConstIterator;
-	const_iterator begin() const { return ConstIterator(data); }
-	const_iterator end() const { return ConstIterator(data + size); }
-	const_iterator cbegin() const { return const_iterator(data); }
-	const_iterator cend() const { return const_iterator(data + size); }
-	const_iterator crbegin() const { return size > 0 ? const_iterator(data + size - 1) : const_iterator(data); }
-	const_iterator crend() const { return const_iterator(data - 1); }
-
-	const Iterator data_get() const { return cbegin(); }
-
-	const T& back() const { return *crbegin(); }
-	const T& front() const { return *cbegin(); }
 
 	/// BEGINNING
 	/// ***************************************************************************************************************
