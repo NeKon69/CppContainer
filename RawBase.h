@@ -7,7 +7,7 @@
 #include <stdexcept>
 
 template<typename T>
-struct is_trivial {
+struct myis_trivial {
 	static const bool value = std::is_trivially_copyable<T>::value && std::is_trivially_destructible<T>::value;
 };
 
@@ -17,7 +17,7 @@ template<typename T> class RawVectorNonTriv;
 template<typename T>
 class RawVector {
 private:
-	static const bool is_trivial_v = is_trivial<T>::value;
+	static const bool is_trivial_v = myis_trivial<T>::value;
 	T* data = nullptr;
 	size_t size = 0;
 	size_t capacity = 0;
@@ -30,8 +30,8 @@ public:
 
 	RawVector() : data(nullptr), size(0), capacity(1) {}
 	virtual ~RawVector() {
-		if (data) { std::cout << "Freeing memory at address: " << static_cast<void*>(data) << " | "; free(data); }
-		std::cout << "RawVector Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
+		if (data) { /*std::cout << "Freeing memory at address: " << static_cast<void*>(data) << " | ";*/ free(data); }
+		//std::cout << "RawVector Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
 	}
 
 	virtual RawVector* clone() const = 0;
@@ -351,7 +351,6 @@ public:
 				auto newData = normalize_capacity();
 				if (data) std::memcpy(newData, data, size * sizeof(T));
 				if (data != nullptr && newData != data) {
-					std::cout << data << std::endl;
 					free(data);
 					data = nullptr;
 				}
@@ -427,7 +426,7 @@ public:
 	/// END
 
 	void resize(size_t new_size) override {
-		if (new_size < size) {
+		if (new_size <= size) {
 			size = new_size;
 			return;
 		}
@@ -437,7 +436,6 @@ public:
 			throw std::bad_alloc();
 		}
 		data = new_data;
-		std::cout << size << std::endl;
 		if (new_size > size) { std::memset(data + size, 0, (new_size - size) * sizeof(T)); }
 		size = new_size;
 		capacity = std::max(capacity, size);
@@ -543,6 +541,7 @@ public:
 	///
 	/// there are 2 overloaded functions, that accept object, and that accept object with move semantic
 	/// **************************************************************************************************
+	/// TASKS: ADD ITERATORS ACCEPTING FUNCTIONS
 	/// END
 
 	void insert(size_t index, const T& value) override {
@@ -614,6 +613,7 @@ public:
 	/// ERASE FUNCTIONS
 	/// erases number on the index of the  vector, uses slide by 1 to move objects before given index
 	/// **************************************************************************************************
+	/// TASKS: ADD ITERATORS ACCEPTING FUNCTIONS
 	/// END
 
 	void erase(size_t index) override {
@@ -674,7 +674,7 @@ public:
 	/// END
 
 	~RawVectorTriv() override {
-		std::cout << "RawVectorTriv Object Destroyed next comes memory freeing" << std::endl;
+		//std::cout << "RawVectorTriv Object Destroyed next comes memory freeing" << std::endl;
 	}
 };
 
@@ -718,10 +718,10 @@ public:
 	void erase(size_t index) override { /*TODO: Implement for non-trivial types*/ };
 	void swap(RawVector<T>& other) noexcept { /*TODO: Implement for non-trivial types*/ };
 
-	~RawVectorNonTriv() override { std::cout << "RawVectorNonTriv Object Destroyed (empty impl)" << std::endl; }
+	~RawVectorNonTriv() override { /*std::cout << "RawVectorNonTriv Object Destroyed (empty impl)" << std::endl;*/ }
 };
 
 
 
 template <typename T>
-using vector = std::conditional_t<is_trivial<T>::value, RawVectorTriv<T>, RawVectorNonTriv<T>>;
+using vector = std::conditional_t<myis_trivial<T>::value, RawVectorTriv<T>, RawVectorNonTriv<T>>;
