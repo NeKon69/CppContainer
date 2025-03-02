@@ -30,8 +30,9 @@ public:
 
 	RawVector() : data(nullptr), size(0), capacity(1) {}
 	virtual ~RawVector() {
-		if (data) { /*std::cout << "Freeing memory at address: " << static_cast<void*>(data) << " | ";*/ free(data); }
-		//std::cout << "RawVector Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
+		std::cout << "Freeing memory at address: " << static_cast<void*>(data) << " | ";
+		if (data) { free(data); }
+		std::cout << "RawVector Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
 	}
 
 	virtual RawVector* clone() const = 0;
@@ -674,37 +675,222 @@ public:
 	/// END
 
 	~RawVectorTriv() override {
-		//std::cout << "RawVectorTriv Object Destroyed next comes memory freeing" << std::endl;
+		std::cout << "RawVectorTriv Object Destroyed next comes memory freeing" << std::endl;
 	}
 };
 
 template<typename T>
 class RawVectorNonTriv : public RawVector<T> {
+private:
+	T* normalize_capacity() {
+		size_t prev_size = size;
+		while (size >= capacity) capacity *= 2;
+
+		void* raw = malloc(sizeof(T) * capacity);
+		if (!raw) throw std::bad_alloc();
+
+		T* new_data = static_cast<T*>(raw);
+
+		for (size_t i = 0; i < prev_size; ++i) {
+			new (new_data + i) T(std::move(data[i]));
+			data[i].~T();
+		}
+
+		for (size_t i = prev_size; i < capacity; ++i)
+			new (new_data + i) T();
+
+		free(data);
+		return new_data;
+	}
+
+	T* reserve_space() {
+		while (size >= capacity) capacity *= 2;
+
+		void* raw = malloc(sizeof(T) * capacity);
+		if (!raw) throw std::bad_alloc();
+
+		T* new_data = static_cast<T*>(raw);
+		for (size_t i = 0; i < capacity; ++i)
+			new (new_data + i) T();
+		return new_data;
+	}
 protected:
 	using RawVector<T>::data;
 	using RawVector<T>::size;
 	using RawVector<T>::capacity;
+	using Iterator = typename RawVector<T>::template IteratorBase<T>;
+	using const_iterator = typename RawVector<T>::template IteratorBase<const T>;
 
 public:
 	RawVectorNonTriv* clone() const override { /*TODO: Implement for non-trivial types*/ return nullptr; /* Placeholder */ }
 
-	RawVectorNonTriv() : RawVector() {}
-	RawVectorNonTriv(size_t size_) : RawVector() {}
-	RawVectorNonTriv(const RawVectorNonTriv& other) : RawVector() {}
-	RawVectorNonTriv(RawVectorNonTriv&& other) noexcept : RawVector() {}
-	RawVectorNonTriv& operator=(const RawVectorNonTriv& other) override { return *this; }
-	RawVectorNonTriv& operator=(RawVectorNonTriv&& other) noexcept override { return *this; }
+	RawVectorNonTriv() {
+		size = 0;
+		capacity = 1;
+		void* raw_memory = malloc(sizeof(T));
+		if (!raw_memory) throw std::bad_alloc();
 
-	void push_back(const T& elem) override { /*TODO: Implement for non-trivial types*/ };
-	void push_back(T&& elem) override { /*TODO: Implement for non-trivial types*/ };
+		try {
+			data = new (raw_memory) T();
+		}
+		catch (...) {
+			free(raw_memory);
+			throw;
+		}
+	}
 
-	T& at(const size_t index) override { /*TODO: Implement for non-trivial types*/ throw std::logic_error("Not implemented"); };
-	const T& at(const size_t index) const override { /*TODO: Implement for non-trivial types*/ throw std::logic_error("Not implemented"); };
-	T& operator [] (const size_t index) override { /*TODO: Implement for non-trivial types*/ throw std::logic_error("Not implemented"); };
-	const T& operator [] (const size_t index) const override { /*TODO: Implement for non-trivial types*/ throw std::logic_error("Not implemented"); };
+	RawVectorNonTriv(size_t size_) {
+		size = size_;
+		capacity = 1;
+		try {
+			data = reserve_space();
+		}
+		catch (const std::bad_alloc& e) {
+			if (data) {
+				for (size_t i = 0; i < capacity; ++i)
+					data[i].~T();
+				free(data);
+			}
+			std::cerr << e.what() << std::endl;
+			throw;
+		}
+	}
 
-	size_t get_size() const override { return RawVector::get_size(); }
-	size_t get_capacity() const override { return RawVector::get_capacity(); }
+	RawVectorNonTriv(const RawVectorNonTriv& other) {
+		size = other.size;
+		capacity = other.capacity;
+		try {
+			data = reserve_space();
+			for (size_t i = 0; i < size; ++i)
+				new (data + i) T(other.data[i]);
+		}
+		catch (const std::bad_alloc& e) {
+			if (data) {
+				for (size_t i = 0; i < capacity; ++i)
+					data[i].~T();
+				free(data);
+			}
+			std::cerr << e.what() << std::endl;
+			throw;
+		}
+	}
+
+	RawVectorNonTriv(RawVectorNonTriv&& other) noexcept {
+		size = other.size;
+		capacity = other.capacity;
+		try {
+			data = reserve_space();
+			for (size_t i = 0; i < size; ++i)
+				new (data + i) T(std::move(other.data[i]));
+		}
+		catch (const std::bad_alloc& e) {
+			if (data) {
+				for (size_t i = 0; i < capacity; ++i)
+					data[i].~T();
+				free(data);
+			}
+			std::cerr << e.what() << std::endl;
+			throw;
+		}
+	}
+
+	RawVectorNonTriv& operator=(const RawVectorNonTriv& other) {
+		size_t free_cap = capacity;
+		size = other.size;
+		capacity = other.capacity;
+		try {
+			for (int i = 0; i < free_cap; ++i)
+				data[i].~T();
+			free(data);
+			data = (T*)malloc(sizeof(T) * capacity);
+			for (int i = 0; i < other.size; ++i) {
+				new (data + i) T(other.data[i]);
+			}
+			for (int i = other.size; i < capacity; ++i)
+				new (data + i) T();
+		}
+
+		catch (const std::bad_alloc& e) {
+			if (data) {
+				for (size_t i = 0; i < free_cap; ++i)
+					data[i].~T();
+				free(data);
+			}
+			std::cerr << e.what() << std::endl;
+			throw;
+		}
+		return *this;
+	}
+
+	RawVectorNonTriv& operator=(RawVectorNonTriv&& other) noexcept {
+		size_t free_cap = capacity;
+		size = other.size;
+		capacity = other.capacity;
+		try {
+			for (int i = 0; i < free_cap; ++i)
+				data[i].~T();
+			free(data);
+			data = (T*)malloc(sizeof(T) * capacity);
+			for (int i = 0; i < other.size; ++i) {
+				new (data + i) T(std::move(other.data[i]));
+				other.data[i].~T();
+			}
+
+			for (int i = other.size; i < capacity; ++i) {
+				other.data[i].~T();
+				new (data + i) T();
+			}
+
+			free(other.data);
+			other.size = 0;
+			other.capacity = 0;
+			other.data = nullptr;
+		}
+
+		catch (const std::bad_alloc& e) {
+			if (data) {
+				for (size_t i = 0; i < free_cap; ++i)
+					data[i].~T();
+				free(data);
+			}
+			std::cerr << e.what() << std::endl;
+			throw;
+		}
+		return *this;
+	}
+
+	void push_back(const T& elem) override {
+		if (size >= capacity) {
+			data = normalize_capacity();
+		}
+		data[size++] = elem;
+	};
+	void push_back(T&& elem) override {
+		if (size >= capacity) {
+			data = normalize_capacity();
+		}
+		data[size++] = std::move(elem);
+	};
+
+	T& at(const size_t index) override {
+		if (index >= size) {
+			throw std::out_of_range("Index out of range");
+		}
+		return data[index];
+	}
+	const T& at(const size_t index) const override {
+		if (index >= size) {
+			throw std::out_of_range("Index out of range");
+		}
+		return data[index];
+	};
+
+	T& operator [] (const size_t index) override {
+		return data[index];
+	};
+	const T& operator [] (const size_t index) const override {
+		return data[index];
+	};
 
 	void resize(size_t new_size) override { /*TODO: Implement for non-trivial types*/ };
 	void reserve(size_t reserve_size) override { /*TODO: Implement for non-trivial types*/ };
@@ -714,14 +900,17 @@ public:
 
 	void insert(size_t index, const T& value) override { /*TODO: Implement for non-trivial types*/ };
 	void insert(size_t index, T&& value) override { /*TODO: Implement for non-trivial types*/ };
+	Iterator insert(Iterator pos, const T& value) override { throw std::logic_error("Not implemented"); /*TODO: Implement for non-trivial types*/ };
+	Iterator insert(Iterator pos, T&& value) override { throw std::logic_error("Not implemented");  /*TODO: Implement for non-trivial types*/ };
 
 	void erase(size_t index) override { /*TODO: Implement for non-trivial types*/ };
+	Iterator erase(Iterator pos) override { throw std::logic_error("Not implemented"); /*TODO: Implement for non-trivial types*/ };
 	void swap(RawVector<T>& other) noexcept { /*TODO: Implement for non-trivial types*/ };
 
-	~RawVectorNonTriv() override { /*std::cout << "RawVectorNonTriv Object Destroyed (empty impl)" << std::endl;*/ }
+	~RawVectorNonTriv() override { for (size_t i = 0; i < capacity; ++i) data[i].~T(); std::cout << "Destryed objects in RawVectorNonTriv, next comes memory freeing" << std::endl; }
 };
 
 
 
 template <typename T>
-using vector = std::conditional_t<myis_trivial<T>::value, RawVectorTriv<T>, RawVectorNonTriv<T>>;
+using rawvector = std::conditional_t<myis_trivial<T>::value, RawVectorTriv<T>, RawVectorNonTriv<T>>;
