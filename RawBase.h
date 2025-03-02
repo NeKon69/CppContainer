@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 #include <stdexcept>
+#include <iterator>
 
 template<typename T>
 struct myis_trivial {
@@ -69,6 +70,7 @@ public:
 	private:
 		iter* ptr;
 	public:
+
 		IteratorBase(iter* ptr_) : ptr(ptr_) {};
 
 		iter& operator *() const { return *ptr; }
@@ -80,7 +82,7 @@ public:
 		IteratorBase operator +(size_t n) const { return IteratorBase(ptr + n); }
 
 		IteratorBase operator -(size_t n) const { return IteratorBase(ptr - n); }
-		size_t operator -(IteratorBase iter) const { return ptr - iter.ptr; }
+		size_t operator -(IteratorBase iter) const { return size_t(ptr - iter.ptr); }
 
 		IteratorBase& operator ++() { ++ptr; return *this; }
 		IteratorBase operator ++(int) { IteratorBase tmp = *this; ++ptr; return tmp; }
@@ -532,7 +534,7 @@ public:
 		if (size == 0) {
 			throw std::out_of_range("Vector is empty");
 		}
-		if (--size == 0) { free(data); data = nullptr; }
+		if (--size == 0) { free(data); data = calloc(1, sizeof(T)); capacity = 1; }
 	}
 
 	/// BEGINNING
@@ -683,7 +685,6 @@ template<typename T>
 class RawVectorNonTriv : public RawVector<T> {
 private:
 	T* normalize_capacity() {
-		size_t prev_size = size;
 		while (size >= capacity) capacity *= 2;
 
 		void* raw = malloc(sizeof(T) * capacity);
@@ -691,12 +692,32 @@ private:
 
 		T* new_data = static_cast<T*>(raw);
 
-		for (size_t i = 0; i < prev_size; ++i) {
+		for (size_t i = 0; i < size; ++i) {
 			new (new_data + i) T(std::move(data[i]));
 			data[i].~T();
 		}
 
-		for (size_t i = prev_size; i < capacity; ++i)
+		for (size_t i = size; i < capacity; ++i)
+			new (new_data + i) T();
+
+		free(data);
+		return new_data;
+	}
+
+	T* normalize_capacity(size_t size_) {
+		while (size_ >= capacity) capacity *= 2;
+
+		void* raw = malloc(sizeof(T) * capacity);
+		if (!raw) throw std::bad_alloc();
+
+		T* new_data = static_cast<T*>(raw);
+
+		for (size_t i = 0; i < size; ++i) {
+			new (new_data + i) T(std::move(data[i]));
+			data[i].~T();
+		}
+
+		for (size_t i = size; i < capacity; ++i)
 			new (new_data + i) T();
 
 		free(data);
@@ -718,10 +739,11 @@ protected:
 	using RawVector<T>::data;
 	using RawVector<T>::size;
 	using RawVector<T>::capacity;
+
+public:
 	using Iterator = typename RawVector<T>::template IteratorBase<T>;
 	using const_iterator = typename RawVector<T>::template IteratorBase<const T>;
 
-public:
 	RawVectorNonTriv* clone() const override { /*TODO: Implement for non-trivial types*/ return nullptr; /* Placeholder */ }
 
 	RawVectorNonTriv() {
@@ -778,20 +800,12 @@ public:
 	RawVectorNonTriv(RawVectorNonTriv&& other) noexcept {
 		size = other.size;
 		capacity = other.capacity;
-		try {
-			data = reserve_space();
-			for (size_t i = 0; i < size; ++i)
-				new (data + i) T(std::move(other.data[i]));
-		}
-		catch (const std::bad_alloc& e) {
-			if (data) {
-				for (size_t i = 0; i < capacity; ++i)
-					data[i].~T();
-				free(data);
-			}
-			std::cerr << e.what() << std::endl;
-			throw;
-		}
+		data = reserve_space();
+		for (size_t i = 0; i < size; ++i)
+			new (data + i) T(std::move(other.data[i]));
+		other.size = 0;
+		other.capacity = 0;
+		other.data = nullptr;
 	}
 
 	RawVectorNonTriv& operator=(const RawVectorNonTriv& other) {
@@ -799,14 +813,14 @@ public:
 		size = other.size;
 		capacity = other.capacity;
 		try {
-			for (int i = 0; i < free_cap; ++i)
+			for (size_t i = 0; i < free_cap; ++i)
 				data[i].~T();
 			free(data);
 			data = (T*)malloc(sizeof(T) * capacity);
-			for (int i = 0; i < other.size; ++i) {
+			for (size_t i = 0; i < other.size; ++i) {
 				new (data + i) T(other.data[i]);
 			}
-			for (int i = other.size; i < capacity; ++i)
+			for (size_t i = other.size; i < capacity; ++i)
 				new (data + i) T();
 		}
 
@@ -826,36 +840,24 @@ public:
 		size_t free_cap = capacity;
 		size = other.size;
 		capacity = other.capacity;
-		try {
-			for (int i = 0; i < free_cap; ++i)
-				data[i].~T();
-			free(data);
-			data = (T*)malloc(sizeof(T) * capacity);
-			for (int i = 0; i < other.size; ++i) {
-				new (data + i) T(std::move(other.data[i]));
-				other.data[i].~T();
-			}
-
-			for (int i = other.size; i < capacity; ++i) {
-				other.data[i].~T();
-				new (data + i) T();
-			}
-
-			free(other.data);
-			other.size = 0;
-			other.capacity = 0;
-			other.data = nullptr;
+		for (size_t i = 0; i < free_cap; ++i)
+			data[i].~T();
+		free(data);
+		data = (T*)malloc(sizeof(T) * capacity);
+		for (size_t i = 0; i < other.size; ++i) {
+			new (data + i) T(std::move(other.data[i]));
+			other.data[i].~T();
 		}
 
-		catch (const std::bad_alloc& e) {
-			if (data) {
-				for (size_t i = 0; i < free_cap; ++i)
-					data[i].~T();
-				free(data);
-			}
-			std::cerr << e.what() << std::endl;
-			throw;
+		for (size_t i = other.size; i < capacity; ++i) {
+			other.data[i].~T();
+			new (data + i) T();
 		}
+
+		free(other.data);
+		other.size = 0;
+		other.capacity = 0;
+		other.data = nullptr;
 		return *this;
 	}
 
@@ -892,20 +894,143 @@ public:
 		return data[index];
 	};
 
-	void resize(size_t new_size) override { /*TODO: Implement for non-trivial types*/ };
-	void reserve(size_t reserve_size) override { /*TODO: Implement for non-trivial types*/ };
-	void clear() override { /*TODO: Implement for non-trivial types*/ };
-	void shrink_to_fit() override { /*TODO: Implement for non-trivial types*/ };
-	void pop_back() override { /*TODO: Implement for non-trivial types*/ };
+	void resize(size_t new_size) override {
+		if (new_size < size)
+			size = new_size;
+		else {
+			if (new_size >= capacity) {
+				data = normalize_capacity(new_size);
+			}
+			size = new_size;
+		}
+	}
+	void reserve(size_t reserve_size) override {
+		if (reserve_size < capacity)
+			return;
+		capacity = reserve_size;
+		data = normalize_capacity();
+	}
 
-	void insert(size_t index, const T& value) override { /*TODO: Implement for non-trivial types*/ };
-	void insert(size_t index, T&& value) override { /*TODO: Implement for non-trivial types*/ };
-	Iterator insert(Iterator pos, const T& value) override { throw std::logic_error("Not implemented"); /*TODO: Implement for non-trivial types*/ };
-	Iterator insert(Iterator pos, T&& value) override { throw std::logic_error("Not implemented");  /*TODO: Implement for non-trivial types*/ };
+	void clear() override {
+		for (size_t i = 0; i < capacity; ++i)
+			data[i].~T();
+		free(data);
+		size = 0;
+		capacity = 1;
+		void* raw_memory = malloc(sizeof(T));
+		if (!raw_memory) throw std::bad_alloc();
+		data = new (raw_memory) T();
+	}
+	void shrink_to_fit() override {
+		if (size == capacity)
+			return;
+		for (size_t i = size; i < capacity; ++i)
+			data[i].~T();
+		capacity = size;
+	}
 
-	void erase(size_t index) override { /*TODO: Implement for non-trivial types*/ };
-	Iterator erase(Iterator pos) override { throw std::logic_error("Not implemented"); /*TODO: Implement for non-trivial types*/ };
-	void swap(RawVector<T>& other) noexcept { /*TODO: Implement for non-trivial types*/ };
+	void pop_back() override {
+		if (size == 0)
+			throw std::out_of_range("Index out of range");
+		if (--size == 0) {
+			for (size_t i = 0; i < capacity; ++i)
+				data[i].~T();
+			free(data);
+			size = 0;
+			capacity = 1;
+			void* raw_memory = malloc(sizeof(T));
+			if (!raw_memory) throw std::bad_alloc();
+			data = new (raw_memory) T();
+		}
+	}
+
+	void insert(size_t index, const T& value) override {
+		if (index > size) {
+			throw std::out_of_range("Index out of range");
+		}
+		if (size == capacity) {
+			data = normalize_capacity();
+		}
+		for (size_t i = size; i > index; --i) {
+			data[i] = std::move(data[i - 1]);
+		}
+		data[index] = value;
+		++size;
+	}
+	void insert(size_t index, T&& value) override {
+		if (index > size) {
+			throw std::out_of_range("Index out of range");
+		}
+		if (size == capacity) {
+			data = normalize_capacity();
+		}
+		for (size_t i = size; i > index; --i) {
+			data[i] = std::move(data[i - 1]);
+		}
+		data[index] = std::move(value);
+		++size;
+	}
+	Iterator insert(Iterator pos, const T& value) override {
+		size_t insert_index = pos - Iterator(data);
+		if (insert_index > size) {
+			throw std::out_of_range("Index out of range");
+		}
+		if (size == capacity) {
+			data = normalize_capacity();
+		}
+		for (size_t i = size; i > insert_index; --i) {
+			data[i] = std::move(data[i - 1]);
+		}
+		data[insert_index] = value;
+		++size;
+		return Iterator(data + insert_index);
+	}
+	Iterator insert(Iterator pos, T&& value) override {
+		size_t insert_index = pos - Iterator(data);
+		if (insert_index > size) {
+			throw std::out_of_range("Index out of range");
+		}
+		if (size == capacity) {
+			data = normalize_capacity();
+		}
+		for (size_t i = size; i > insert_index; --i) {
+			data[i] = std::move(data[i - 1]);
+		}
+		data[insert_index] = std::move(value);
+		++size;
+		return Iterator(data + insert_index);
+	}
+
+	void erase(size_t index) override {
+		if (index >= size) {
+			throw std::out_of_range("Index out of range");
+		}
+		data[index].~T();
+		for (size_t i = index; i < size - 1; ++i) {
+			data[i] = std::move(data[i + 1]);
+		}
+		--size;
+	}
+
+	Iterator erase(Iterator pos) override {
+		size_t erase_index = pos - Iterator(data);
+
+		if (erase_index >= size) {
+			throw std::out_of_range("Index out of range");
+		}
+		data[erase_index].~T();
+		for (size_t i = erase_index; i < size - 1; ++i) {
+			data[i] = std::move(data[i + 1]);
+		}
+		--size;
+		return pos;
+	}
+
+	void swap(RawVector<T>& other) noexcept {
+		std::swap(size, other.size);
+		std::swap(capacity, other.capacity);
+		std::swap(data, other.data);
+	};
 
 	~RawVectorNonTriv() override { for (size_t i = 0; i < capacity; ++i) data[i].~T(); std::cout << "Destryed objects in RawVectorNonTriv, next comes memory freeing" << std::endl; }
 };
