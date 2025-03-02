@@ -40,8 +40,6 @@ public:
 		std::cout << "RawVector Object Destroyed with size: " << size << " and with capacity: " << capacity << std::endl;
 	}
 
-	virtual RawVector* clone() const = 0;
-
 	virtual void push_back(const T& elem) = 0;
 	virtual void push_back(T&& elem) = 0;
 
@@ -186,7 +184,6 @@ protected:
 public:
 	using Iterator = typename RawVector<T>::template IteratorBase<T>;
 	using const_iterator = typename RawVector<T>::template IteratorBase<const T>;
-	RawVectorTriv* clone() const override { return new RawVectorTriv(*this); }
 
 	/*********************************************************************
 	 * DEFAULT CONSTRUCTOR: `RawVectorTriv()`
