@@ -76,13 +76,8 @@ void printVector(const raw::vector<T>& v) {
 }
 
 int main() {
-    //_CrtSetBreakAlloc(13561);
-    //_CrtSetBreakAlloc(244);
-    //_CrtSetBreakAlloc(13590);
     {
         std::cout << "Starting HARDCORE tests...\n";
-
-        // -------------------- Test 1: Push_back, Resize, Reserve, Clear (string) --------------------
         std::cout << "\n--- Test 1: Push_back, Resize, Reserve, Clear (string) ---\n";
         raw::vector<std::string> test1;
         std::cout << "Created test1. get_size(): " << test1.get_size() << "\n";
@@ -107,7 +102,7 @@ int main() {
         test1.reserve(5);
         printVector<std::string>(test1);
         std::cout << "Reserved 5. get_size(): " << test1.get_size() << "\n";
-        assert(test1.get_size() == 2); // Size should not change
+        assert(test1.get_size() == 2);
         test1.push_back("date");
         assert(test1.get_size() == 3);
         assert(test1[2] == "date");
@@ -118,10 +113,8 @@ int main() {
         assert(test1.empty());
         std::cout << "Test 1 passed\n";
     }
-    
-    {
 
-        // -------------------- Test 2: Insert, Erase, Iterator Invalidation (string) --------------------
+    {
         std::cout << "\n--- Test 2: Insert, Erase, Iterator Invalidation (string) ---\n";
         raw::vector<std::string> test2;
         test2.push_back("hello");
@@ -141,17 +134,15 @@ int main() {
         assert(test2.get_size() == 3);
         assert(test2[0] == "beautiful");
 
-        // Test iterator invalidation (simplified - no direct iterator use)
         test2.push_back("again");
         std::cout << "Pushed \"again\". get_size(): " << test2.get_size() << "\n";
         assert(test2.get_size() == 4);
 
         std::cout << "Test 2 passed\n";
 
-        // -------------------- Test 3: Large Size, Copy/Move (string) --------------------
         std::cout << "\n--- Test 3: Large Size, Copy/Move (string) ---\n";
         raw::vector<std::string> test3;
-        const int largeSize = 1000; // Reduced for string tests
+        const int largeSize = 1000;
         for (int i = 0; i < largeSize; ++i) {
             test3.push_back("string" + std::to_string(i));
         }
@@ -174,7 +165,6 @@ int main() {
             assert(test3_move[i] == "string" + std::to_string(i));
         }
         std::cout << "Test 3 passed\n";
-        // -------------------- Test 5: Custom Struct (MyStruct) --------------------
         std::cout << "\n--- Test 5: Custom Struct (MyStruct) ---\n";
         raw::vector<MyStruct> test5;
         test5.push_back(MyStruct(1, "one"));
@@ -193,15 +183,13 @@ int main() {
         assert(test5[0].s == "one");
         assert(test5[1].x == 2);
         assert(test5[1].s == "two");
-        assert(test5[2].x == 0); // Default constructed
+        assert(test5[2].x == 0);
         assert(test5[2].s == "");
         std::cout << "Test 5 passed\n";
 
-        // -------------------- Test 6: Exception Safety (Simplified) --------------------
         std::cout << "\n--- Test 6: Exception Safety (Simplified) ---\n";
         try {
             raw::vector<std::string> exceptionTest;
-            // Simulate a potential exception during element construction (not fully testable without custom allocator)
             exceptionTest.push_back("hello");
             exceptionTest.push_back("world");
             std::cout << "Exception test: push_back successful\n";
@@ -213,10 +201,9 @@ int main() {
         std::cout << "Exception test: completed\n";
     }
     {
-        // -------------------- Test 7: Mixed Operations and Shrink to Fit (string) --------------------
         std::cout << "\n--- Test 7: Mixed Operations and Shrink to Fit (string) ---\n";
         raw::vector<std::string> test7;
-        for (int i = 0; i < 5; ++i) { // Reduced for string tests
+        for (int i = 0; i < 5; ++i) {
             test7.push_back("str" + std::to_string(i));
         }
         std::cout << "Pushed 5 strings. get_size(): " << test7.get_size() << "\n";
@@ -247,7 +234,6 @@ int main() {
     }
 
     {
-        // -------------------- Test 4: String Tests (string) --------------------
         std::cout << "\n--- Test 4: String Tests (string) ---\n";
         raw::vector<std::string> test4;
         test4.push_back("hello");
@@ -267,6 +253,69 @@ int main() {
         assert(test4[0] == "beautiful");
         assert(test4[1] == "world");
         std::cout << "Test 4 passed\n";
+    }
+
+    {
+        // -------------------- Test 8: Stress Test - Random Operations (string) --------------------
+        std::cout << "\n--- Test 8: Stress Test - Random Operations (string) ---\n";
+        for (int iter = 0; iter < 1000; ++iter) { // Reduced iterations for string tests
+            std::cout << "Iteration " << iter + 1 << "\n";
+            raw::vector<std::string> test8;
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dist(0, 9); // Reduced range for string length
+            std::uniform_int_distribution<> sizeDist(0, 10); // Reduced range for resize/reserve
+            std::uniform_int_distribution<> indexDist(0, 9); // Reduced range for insert/erase
+
+            for (int i = 0; i < 100; ++i) { // Reduced iterations for string tests
+                size_t res = 0;
+                std::cout << "vector before change: ";
+                printVector<std::string>(test8);
+                int operation = dist(gen) % 5;
+                switch (operation) {
+                case 0: // push_back
+                    std::cout << "vector after operation push_back: ";
+                    test8.push_back(std::string(dist(gen), 'a'));
+                    std::cout << "push_back: ";
+                    break;
+                case 1: // insert
+                    if (test8.get_size() > 0) {
+                        res = indexDist(gen) % test8.get_size();
+                        std::cout << "vector after operation insert: " << res << " ";
+                        test8.insert(res, std::string(dist(gen), 'b'));
+                        std::cout << "insert: ";
+                    }
+                    break;
+                case 2: // erase
+                    if (test8.get_size() > 0) {
+                        res = indexDist(gen) % test8.get_size();
+                        std::cout << "vector after operation erase: " << res << " ";
+                        test8.erase(res);
+                        std::cout << "erase: ";
+                    }
+                    break;
+                case 3: // resize
+                    res = sizeDist(gen);
+                    std::cout << "vector after operation resize: " << res << " ";
+                    test8.resize(res);
+                    std::cout << "resize: ";
+                    break;
+                case 4: // reserve
+                    res = sizeDist(gen);
+                    std::cout << "vector after operation reserve: " << res << " ";
+                    test8.reserve(res);
+                    std::cout << "reserve: ";
+                    break;
+                }
+                printVector<std::string>(test8);
+                std::cout << "Iteration " << i << ", get_size(): " << test8.get_size() << ", get_capacity(): " << test8.get_capacity() << "\n";
+            }
+            std::cout << "Final vector contents (Test 8):\n";
+            printVector<std::string>(test8);
+            std::cout << "Test 8 passed (or at least didn't crash!)\n";
+        }
+        std::cout << "HARDCORE tests completed!\n";
+        return 0;
     }
     _CrtDumpMemoryLeaks();
 }

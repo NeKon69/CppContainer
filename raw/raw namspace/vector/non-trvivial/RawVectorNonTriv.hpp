@@ -35,8 +35,10 @@ namespace raw {
 				new (new_data + i) T(std::move(data[i]));
 				data[i].~T();
 			}
+			T* old_data = data;
+			data = new_data;
+			free(old_data);
 
-			free(data);
 			return new_data;
 		}
 
@@ -63,8 +65,10 @@ namespace raw {
 				new (new_data + i) T(std::move(data[i]));
 				data[i].~T();
 			}
+			T* old_data = data;
+			data = new_data;
+			free(old_data);
 
-			free(data);
 			return new_data;
 		}
 
@@ -328,10 +332,8 @@ namespace raw {
 			else {
 				while (new_size >= capacity) capacity *= 2;
 
-				void* raw = malloc(sizeof(T) * capacity);
-				if (!raw) throw std::bad_alloc();
-
-				T* new_data = static_cast<T*>(raw);
+				T* new_data = (T*)malloc(sizeof(T) * capacity);
+				if (!new_data) throw std::bad_alloc();
 
 				for (size_t i = 0; i < size; ++i) {
 					new (new_data + i) T(std::move(data[i]));
@@ -514,6 +516,7 @@ namespace raw {
 				data[i] = std::move(data[i + 1]);
 			}
 			--size;
+			data[size].~T();
 		}
 
 		Iterator erase(Iterator pos) override {
@@ -527,6 +530,7 @@ namespace raw {
 				data[i] = std::move(data[i + 1]);
 			}
 			--size;
+			data[size].~T();
 			return pos;
 		}
 
