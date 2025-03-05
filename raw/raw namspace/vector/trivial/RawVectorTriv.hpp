@@ -51,7 +51,6 @@ namespace raw {
 	public:
 		using Iterator = typename vector_base<T>::template IteratorBase<T>;
 		using const_iterator = typename vector_base<T>::template IteratorBase<const T>;
-		vector_triv* clone() const override { return new vector_triv(*this); }
 
 		/*********************************************************************
 		 * DEFAULT CONSTRUCTOR: `vector_triv()`
@@ -299,15 +298,13 @@ namespace raw {
 				size = new_size;
 				return;
 			}
-			T* new_data = (T*)realloc(data, new_size * sizeof(T));
-			if (!new_data) {
-				std::cerr << "Couldn't reserve that much space ERR" << std::endl;
-				throw std::bad_alloc();
-			}
-			data = new_data;
-			if (new_size > size) { std::memset(data + size, 0, (new_size - size) * sizeof(T)); }
+			size_t old_size = size;
 			size = new_size;
-			capacity = std::max(capacity, size);
+			auto new_data = normalize_capacity();
+			free(data);
+			data = new_data;
+			if (old_size < size) { memset(data + old_size, 0, (size - old_size) * sizeof(T)); }
+
 		}
 
 		/*************************************************************************************
@@ -320,14 +317,13 @@ namespace raw {
 		 *************************************************************************************/
 
 		void reserve(size_t reserve_size) override {
-			if (reserve_size < capacity) {
+			if (reserve_size <= capacity) {
 				return;
 			}
 			try {
 				auto temp = (T*)realloc(data, reserve_size * sizeof(T));
 				if (!temp) {
 					std::cerr << "Couldn't reserve that much space ERR" << std::endl;
-					free(data);
 					throw std::bad_alloc();
 				}
 				data = temp;
@@ -402,7 +398,7 @@ namespace raw {
 			if (size == 0) {
 				throw std::out_of_range("Vector is empty");
 			}
-			if (--size == 0) { free(data); data = calloc(1, sizeof(T)); capacity = 1; }
+			if (--size == 0) { free(data); data = (T*)calloc(1, sizeof(T)); capacity = 1; }
 		}
 
 		/*************************************************************************************
@@ -495,7 +491,7 @@ namespace raw {
 				throw std::out_of_range("Index out of range");
 			}
 			std::memmove(data + index, data + index + 1, (size - index - 1) * sizeof(T));
-			if (--size == 0) { free(data); data = nullptr; }
+			--size;
 		}
 
 		Iterator erase(Iterator pos) override {
@@ -504,7 +500,7 @@ namespace raw {
 				throw std::out_of_range("Index out of range");
 			}
 			std::memmove(data + erase_index, data + erase_index + 1, (size - erase_index - 1) * sizeof(T));
-			if (--size == 0) { free(data); data = nullptr; }
+			--size;
 			return Iterator(data + erase_index);
 		}
 

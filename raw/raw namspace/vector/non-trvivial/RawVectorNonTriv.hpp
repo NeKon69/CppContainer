@@ -36,9 +36,6 @@ namespace raw {
 				data[i].~T();
 			}
 
-			for (size_t i = size; i < capacity; ++i)
-				new (new_data + i) T();
-
 			free(data);
 			return new_data;
 		}
@@ -67,9 +64,6 @@ namespace raw {
 				data[i].~T();
 			}
 
-			for (size_t i = size; i < capacity; ++i)
-				new (new_data + i) T();
-
 			free(data);
 			return new_data;
 		}
@@ -91,7 +85,7 @@ namespace raw {
 			if (!raw) throw std::bad_alloc();
 
 			T* new_data = static_cast<T*>(raw);
-			for (size_t i = 0; i < capacity; ++i)
+			for (size_t i = 0; i < size; ++i)
 				new (new_data + i) T();
 			return new_data;
 		}
@@ -115,16 +109,9 @@ namespace raw {
 		vector_non_triv() {
 			size = 0;
 			capacity = 1;
-			void* raw_memory = malloc(sizeof(T));
+			T* raw_memory = (T*)malloc(sizeof(T));
 			if (!raw_memory) throw std::bad_alloc();
-
-			try {
-				data = new (raw_memory) T();
-			}
-			catch (...) {
-				free(raw_memory);
-				throw;
-			}
+			data = raw_memory;
 		}
 
 		/*********************************************************************
@@ -144,7 +131,7 @@ namespace raw {
 			}
 			catch (const std::bad_alloc& e) {
 				if (data) {
-					for (size_t i = 0; i < capacity; ++i)
+					for (size_t i = 0; i < size; ++i)
 						data[i].~T();
 					free(data);
 				}
@@ -166,13 +153,13 @@ namespace raw {
 			size = other.size;
 			capacity = other.capacity;
 			try {
-				data = reserve_space();
+				data = (T*)malloc(sizeof(T) * capacity);
 				for (size_t i = 0; i < size; ++i)
 					new (data + i) T(other.data[i]);
 			}
 			catch (const std::bad_alloc& e) {
 				if (data) {
-					for (size_t i = 0; i < capacity; ++i)
+					for (size_t i = 0; i < size; ++i)
 						data[i].~T();
 					free(data);
 				}
@@ -192,11 +179,14 @@ namespace raw {
 		vector_non_triv(vector_non_triv&& other) noexcept {
 			size = other.size;
 			capacity = other.capacity;
-			data = reserve_space();
-			for (size_t i = 0; i < size; ++i)
+			data = (T*)malloc(sizeof(T) * capacity);
+			for (size_t i = 0; i < size; ++i){
 				new (data + i) T(std::move(other.data[i]));
+				other.data[i].~T();
+			}
 			other.size = 0;
 			other.capacity = 0;
+			free(other.data);
 			other.data = nullptr;
 		}
 
@@ -212,7 +202,7 @@ namespace raw {
 		vector_non_triv& operator=(const vector_non_triv& other) {
 			if (data == other.data)
 				return *this;
-			size_t free_cap = capacity;
+			size_t free_cap = size;
 			size = other.size;
 			capacity = other.capacity;
 			try {
@@ -223,13 +213,11 @@ namespace raw {
 				for (size_t i = 0; i < other.size; ++i) {
 					new (data + i) T(other.data[i]);
 				}
-				for (size_t i = other.size; i < capacity; ++i)
-					new (data + i) T();
 			}
 
 			catch (const std::bad_alloc& e) {
 				if (data) {
-					for (size_t i = 0; i < free_cap; ++i)
+					for (size_t i = 0; i < size; ++i)
 						data[i].~T();
 					free(data);
 				}
@@ -250,7 +238,7 @@ namespace raw {
 		vector_non_triv& operator=(vector_non_triv&& other) noexcept {
 			if (data == other.data)
 				return *this;
-			size_t free_cap = capacity;
+			size_t free_cap = size;
 			size = other.size;
 			capacity = other.capacity;
 			for (size_t i = 0; i < free_cap; ++i)
@@ -260,11 +248,6 @@ namespace raw {
 			for (size_t i = 0; i < other.size; ++i) {
 				new (data + i) T(std::move(other.data[i]));
 				other.data[i].~T();
-			}
-
-			for (size_t i = other.size; i < capacity; ++i) {
-				other.data[i].~T();
-				new (data + i) T();
 			}
 
 			free(other.data);
@@ -288,13 +271,15 @@ namespace raw {
 			if (size >= capacity) {
 				data = normalize_capacity();
 			}
-			data[size++] = elem;
+			new (data + size) T(elem);
+			++size;
 		};
 		void push_back(T&& elem) override {
 			if (size >= capacity) {
 				data = normalize_capacity();
 			}
-			data[size++] = std::move(elem);
+			new (data + size) T(std::move(elem));
+			++size;
 		};
 
 		/*********************************************************************
@@ -335,13 +320,29 @@ namespace raw {
 		 *********************************************************************/
 
 		void resize(size_t new_size) override {
-			if (new_size < size)
+			if (new_size < size) {
+				for (size_t i = new_size; i < size; ++i)
+					data[i].~T();
 				size = new_size;
+			}
 			else {
-				if (new_size >= capacity) {
-					data = normalize_capacity(new_size);
+				while (new_size >= capacity) capacity *= 2;
+
+				void* raw = malloc(sizeof(T) * capacity);
+				if (!raw) throw std::bad_alloc();
+
+				T* new_data = static_cast<T*>(raw);
+
+				for (size_t i = 0; i < size; ++i) {
+					new (new_data + i) T(std::move(data[i]));
+					data[i].~T();
 				}
+
+				for(size_t i = size; i < new_size; ++i)
+					new (new_data + i) T();
+				free(data);
 				size = new_size;
+				data = new_data;
 			}
 		}
 
@@ -358,8 +359,7 @@ namespace raw {
 		void reserve(size_t reserve_size) override {
 			if (reserve_size < capacity)
 				return;
-			capacity = reserve_size;
-			data = normalize_capacity();
+			data = normalize_capacity(reserve_size);
 		}
 
 		/*********************************************************************
@@ -372,14 +372,12 @@ namespace raw {
 		 *********************************************************************/
 
 		void clear() override {
-			for (size_t i = 0; i < capacity; ++i)
+			for (size_t i = 0; i < size; ++i)
 				data[i].~T();
 			free(data);
 			size = 0;
 			capacity = 1;
-			void* raw_memory = malloc(sizeof(T));
-			if (!raw_memory) throw std::bad_alloc();
-			data = new (raw_memory) T();
+			data = (T*)malloc(sizeof(T));
 		}
 
 		/**************************************************************************************
@@ -395,9 +393,18 @@ namespace raw {
 		void shrink_to_fit() override {
 			if (size == capacity)
 				return;
-			for (size_t i = size; i < capacity; ++i)
+			void* raw = malloc(sizeof(T) * size);
+			if (!raw) throw std::bad_alloc();
+
+			T* new_data = static_cast<T*>(raw);
+
+			for (size_t i = 0; i < size; ++i) {
+				new (new_data + i) T(std::move(data[i]));
 				data[i].~T();
-			capacity = size;
+			}
+
+			free(data);
+			data = new_data;
 		}
 
 		/*********************************************************************
@@ -412,16 +419,8 @@ namespace raw {
 		void pop_back() override {
 			if (size == 0)
 				throw std::out_of_range("Index out of range");
-			if (--size == 0) {
-				for (size_t i = 0; i < capacity; ++i)
-					data[i].~T();
-				free(data);
-				size = 0;
-				capacity = 1;
-				void* raw_memory = malloc(sizeof(T));
-				if (!raw_memory) throw std::bad_alloc();
-				data = new (raw_memory) T();
-			}
+			--size;
+			data[size].~T();
 		}
 
 		/*********************************************************************
@@ -436,26 +435,28 @@ namespace raw {
 		 *********************************************************************/
 
 		void insert(size_t index, const T& value) override {
-			if (index > size) {
+			if (index >= size) {
 				throw std::out_of_range("Index out of range");
 			}
 			if (size == capacity) {
 				data = normalize_capacity();
 			}
-			for (size_t i = size; i > index; --i) {
+			new (data + size) T(std::move(data[size - 1]));
+			for (size_t i = size - 1; i > index; --i) {
 				data[i] = std::move(data[i - 1]);
 			}
 			data[index] = value;
 			++size;
 		}
 		void insert(size_t index, T&& value) override {
-			if (index > size) {
+			if (index >= size) {
 				throw std::out_of_range("Index out of range");
 			}
 			if (size == capacity) {
 				data = normalize_capacity();
 			}
-			for (size_t i = size; i > index; --i) {
+			new (data + size) T(std::move(data[size - 1]));
+			for (size_t i = size - 1; i > index; --i) {
 				data[i] = std::move(data[i - 1]);
 			}
 			data[index] = std::move(value);
@@ -469,7 +470,8 @@ namespace raw {
 			if (size == capacity) {
 				data = normalize_capacity();
 			}
-			for (size_t i = size; i > insert_index; --i) {
+			new (data + size) T(std::move(data[size - 1]));
+			for (size_t i = size - 1; i > insert_index; --i) {
 				data[i] = std::move(data[i - 1]);
 			}
 			data[insert_index] = value;
@@ -484,7 +486,8 @@ namespace raw {
 			if (size == capacity) {
 				data = normalize_capacity();
 			}
-			for (size_t i = size; i > insert_index; --i) {
+			new (data + size) T(std::move(data[size - 1]));
+			for (size_t i = size - 1; i > insert_index; --i) {
 				data[i] = std::move(data[i - 1]);
 			}
 			data[insert_index] = std::move(value);
@@ -552,6 +555,6 @@ namespace raw {
 		 * Throws: exceptions from T's destructor.
 		 *********************************************************************/
 
-		~vector_non_triv() override { for (size_t i = 0; i < capacity; ++i) data[i].~T(); std::cout << "Destryed objects in vector_non_triv, next comes memory freeing" << std::endl; }
+		~vector_non_triv() override { for (size_t i = 0; i < size; ++i) data[i].~T(); std::cout << "Destryed objects in vector_non_triv, next comes memory freeing" << std::endl; }
 	};
 }
