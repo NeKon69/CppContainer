@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
-#include "RawVector.hpp"
+#include "RawNamespace\vector\RawVector.hpp"
 
 namespace raw {
 	template<typename T>
@@ -366,7 +366,7 @@ namespace raw {
 		 **************************************************************************************/
 
 		void shrink_to_fit() override {
-			if (size != capacity && size != 0) {
+			if (size != capacity && size != 0 && capacity != 1) {
 				try {
 					auto shrinked = (T*)realloc(data, size * sizeof(T));
 					if (!shrinked) {
@@ -382,7 +382,8 @@ namespace raw {
 					throw;
 				}
 			}
-			if (size == 0) { free(data); data = nullptr; capacity = 0; }
+			else { return; }
+
 		}
 
 		/*********************************************************************

@@ -2,7 +2,9 @@
 #include <iostream>
 #include <cstdlib>
 #include <algorithm>
-#include "trivial_check.hpp"
+#include "RawNamespace\vector\trivial_check.hpp"
+#include "RawNamespace\RawBase.hpp"
+
 
 namespace raw {
 	template<typename T>
@@ -59,6 +61,7 @@ namespace raw {
 			IteratorBase& operator -=(size_t n) { ptr -= n; return *this; }
 
 			IteratorBase operator +(size_t n) const { return IteratorBase(ptr + n); }
+			friend IteratorBase operator+(size_t n, const IteratorBase& it) { return IteratorBase(it + n); }
 
 			IteratorBase operator -(size_t n) const { return IteratorBase(ptr - n); }
 			size_t operator -(IteratorBase iter) const { return size_t(ptr - iter.ptr); }

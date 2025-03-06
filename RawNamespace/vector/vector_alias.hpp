@@ -1,10 +1,10 @@
 #pragma once
 #include <type_traits>
-#include "trivial_check.hpp"
-#include "RawBase.hpp"
-#include "RawVector.hpp"
-#include "RawVectorTriv.hpp"
-#include "RawVectorNonTriv.hpp"
+#include "RawNamespace\vector\trivial_check.hpp"
+#include "RawNamespace\RawBase.hpp"
+#include "RawNamespace\vector\RawVector.hpp"
+#include "RawNamespace\vector\trivial\RawVectorTriv.hpp"
+#include "RawNamespace\vector\non-trvivial\RawVectorNonTriv.hpp"
 
 namespace raw {
 	/*********************************************************************

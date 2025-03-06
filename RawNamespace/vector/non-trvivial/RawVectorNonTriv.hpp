@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <memory>
-#include "RawVector.hpp"
+#include "RawNamespace\vector\RawVector.hpp"
 
 
 namespace raw {
@@ -54,6 +54,8 @@ namespace raw {
 		 *************************************************************************************/
 
 		T* normalize_capacity(size_t size_) {
+			if (std::numeric_limits<size_t>::max() / 2 < size_) throw std::bad_alloc();
+			if (capacity == 0) capacity = 1;
 			while (size_ >= capacity) capacity *= 2;
 
 			void* raw = malloc(sizeof(T) * capacity);
@@ -361,7 +363,10 @@ namespace raw {
 		void reserve(size_t reserve_size) override {
 			if (reserve_size < capacity)
 				return;
-			data = normalize_capacity(reserve_size);
+			try {
+				data = normalize_capacity(reserve_size);
+			}
+			catch (const std::bad_alloc& e) { throw; }
 		}
 
 		/*********************************************************************
@@ -393,7 +398,7 @@ namespace raw {
 		 **************************************************************************************/
 
 		void shrink_to_fit() override {
-			if (size == capacity)
+			if (size == capacity || size == 0)
 				return;
 			void* raw = malloc(sizeof(T) * size);
 			if (!raw) throw std::bad_alloc();
@@ -407,6 +412,7 @@ namespace raw {
 
 			free(data);
 			data = new_data;
+			capacity = size;
 		}
 
 		/*********************************************************************
@@ -437,8 +443,12 @@ namespace raw {
 		 *********************************************************************/
 
 		void insert(size_t index, const T& value) override {
-			if (index >= size) {
+			if (index > size) {
 				throw std::out_of_range("Index out of range");
+			}
+			if (index == size){
+				push_back(value);
+				return;
 			}
 			if (size == capacity) {
 				data = normalize_capacity();
@@ -451,9 +461,14 @@ namespace raw {
 			++size;
 		}
 		void insert(size_t index, T&& value) override {
-			if (index >= size) {
+			if (index > size) {
 				throw std::out_of_range("Index out of range");
 			}
+			if (index == size) {
+				push_back(std::move(value));
+				return;
+			}
+				
 			if (size == capacity) {
 				data = normalize_capacity();
 			}
@@ -469,6 +484,11 @@ namespace raw {
 			if (insert_index > size) {
 				throw std::out_of_range("Index out of range");
 			}
+			if (insert_index == size) {
+				push_back(value);
+				return Iterator(data + insert_index);
+			}
+				
 			if (size == capacity) {
 				data = normalize_capacity();
 			}
@@ -484,6 +504,10 @@ namespace raw {
 			size_t insert_index = pos - Iterator(data);
 			if (insert_index > size) {
 				throw std::out_of_range("Index out of range");
+			}
+			if (insert_index == size){
+				push_back(std::move(value));
+				return Iterator(data + insert_index);
 			}
 			if (size == capacity) {
 				data = normalize_capacity();
