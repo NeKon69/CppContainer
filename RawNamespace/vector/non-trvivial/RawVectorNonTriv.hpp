@@ -366,7 +366,7 @@ namespace raw {
 			try {
 				data = normalize_capacity(reserve_size);
 			}
-			catch (const std::bad_alloc& e) { throw; }
+			catch (const std::bad_alloc& e) { std::cerr << e.what() << std::endl; throw; }
 		}
 
 		/*********************************************************************

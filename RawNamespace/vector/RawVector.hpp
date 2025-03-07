@@ -80,13 +80,48 @@ namespace raw {
 			bool operator>=(const IteratorBase& other) const { return ptr >= other.ptr; }
 		};
 
+		template <typename iter>
+		class ReverseIterator {
+		private:
+			iter* it;
+		public:
+			ReverseIterator(iter* it_) : it(it_) {}
+
+			iter& operator *() const { return *it; }
+			iter* operator ->() const { return it; }
+
+			ReverseIterator& operator +=(size_t n) { it -= n; return *this; }
+			ReverseIterator& operator -=(size_t n) { it += n; return *this; }
+
+			ReverseIterator operator +(size_t n) const { return ReverseIterator(it - n); }
+			friend ReverseIterator operator+(size_t n, const ReverseIterator& it) { return ReverseIterator(it - n); }
+
+			ReverseIterator operator -(size_t n) const { return ReverseIterator(it + n); }
+			size_t operator -(ReverseIterator iter_) const { return size_t(iter_.it - it); }
+
+			ReverseIterator& operator ++() { --it; return *this; }
+			ReverseIterator operator ++(int) { ReverseIterator tmp = *this; --it; return tmp; }
+
+			ReverseIterator& operator --() { ++it; return *this; }
+			ReverseIterator operator --(int) { ReverseIterator tmp = *this; ++it; return tmp; }
+
+			bool operator==(const ReverseIterator& other) const { return it == other.it; }
+			bool operator!=(const ReverseIterator& other) const { return it != other.it; }
+			bool operator< (const ReverseIterator& other) const { return it > other.it; }
+			bool operator> (const ReverseIterator& other) const { return it < other.it; }
+			bool operator<=(const ReverseIterator& other) const { return it >= other.it; }
+			bool operator>=(const ReverseIterator& other) const { return it <= other.it; }
+		};
+
 		using Iterator = IteratorBase<T>;
 		using const_iterator = IteratorBase<const T>;
+		using reverse_iterator = ReverseIterator;
+		using const_reverse_iterator = const ReverseIterator;
 
 		Iterator begin() { return Iterator(data); }
 		Iterator end() { return Iterator(data + size); }
-		Iterator rbegin() { return size > 0 ? Iterator(data + size - 1) : Iterator(data); }
-		Iterator rend() { return Iterator(data - 1); }
+		Iterator rbegin() { return size > 0 ? reverse_iterator(data + size - 1) : reverse_iterator(data); }
+		Iterator rend() { return reverse_iterator(data - 1); }
 
 		Iterator data_get() { return begin(); }
 
@@ -97,8 +132,8 @@ namespace raw {
 		const_iterator end() const { return const_iterator(data + size); }
 		const_iterator cbegin() const { return const_iterator(data); }
 		const_iterator cend() const { return const_iterator(data + size); }
-		const_iterator crbegin() const { return size > 0 ? const_iterator(data + size - 1) : const_iterator(data); }
-		const_iterator crend() const { return const_iterator(data - 1); }
+		const_iterator crbegin() const { return size > 0 ? const_reverse_iterator(data + size - 1) : const_reverse_iterator(data); }
+		const_iterator crend() const { return const_reverse_iterator(data - 1); }
 
 		const_iterator data_get() const { return cbegin(); }
 

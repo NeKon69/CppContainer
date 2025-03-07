@@ -32,15 +32,12 @@ namespace raw {
 		  *************************************************************************************************/
 		T* normalize_capacity() override {
 			while (size >= capacity) capacity *= 2;
-			T* newData = (T*)malloc(sizeof(T) * capacity);
-			if (!newData) {
-				std::cout << "BAD ALLOC!!!!!!!\n";
-				throw std::bad_alloc();
+			T* new_data = (T*)realloc(data, sizeof(T) * capacity);
+			if (new_data) {
+				data = new_data;
+				return data;
 			}
-			if (data) {
-				std::memcpy(newData, data, size * sizeof(T));
-			}
-			return newData;
+			throw std::bad_alloc();
 		}
 
 	protected:
@@ -73,8 +70,7 @@ namespace raw {
 			size = size_;
 			capacity = 1;
 			try {
-				auto newData = normalize_capacity();
-				data = newData;
+				normalize_capacity();
 				std::memset(data, 0, size_ * sizeof(T));
 			}
 			catch (std::bad_alloc& e) {
@@ -219,13 +215,7 @@ namespace raw {
 				data = (T*)malloc(sizeof(T));
 			try {
 				if (capacity <= size) {
-					auto newData = normalize_capacity();
-					if (data) std::memcpy(newData, data, size * sizeof(T));
-					if (data != nullptr && newData != data) {
-						free(data);
-						data = nullptr;
-					}
-					data = newData;
+					normalize_capacity();
 				}
 				if (data) {
 					data[size] = std::move(elem);
@@ -300,9 +290,7 @@ namespace raw {
 			}
 			size_t old_size = size;
 			size = new_size;
-			auto new_data = normalize_capacity();
-			free(data);
-			data = new_data;
+			normalize_capacity();
 			if (old_size < size) { memset(data + old_size, 0, (size - old_size) * sizeof(T)); }
 
 		}
@@ -418,10 +406,7 @@ namespace raw {
 				throw std::out_of_range("Index out of range");
 			}
 			if (size == capacity) {
-				auto newData = normalize_capacity();
-				std::memcpy(newData, data, size * sizeof(T));
-				free(data);
-				data = newData;
+				normalize_capacity();
 			}
 			std::memmove(data + index + 1, data + index, (size - index) * sizeof(T));
 			data[index] = value;
@@ -433,10 +418,7 @@ namespace raw {
 				throw std::out_of_range("Index out of range");
 			}
 			if (size == capacity) {
-				auto newData = normalize_capacity();
-				std::memcpy(newData, data, size * sizeof(T));
-				free(data);
-				data = newData;
+				normalize_capacity();
 			}
 			std::memmove(data + index + 1, data + index, (size - index) * sizeof(T));
 			data[index] = std::move(value);
@@ -451,8 +433,6 @@ namespace raw {
 			}
 			if (size == capacity) {
 				auto newData = normalize_capacity();
-				free(data);
-				data = newData;
 			}
 			std::memmove(data + insert_index + 1, data + insert_index, (size - insert_index) * sizeof(T));
 			data[insert_index] = value;
@@ -468,8 +448,6 @@ namespace raw {
 			}
 			if (size == capacity) {
 				auto newData = normalize_capacity();
-				free(data);
-				data = newData;
 			}
 			std::memmove(data + insert_index + 1, data + insert_index, (size - insert_index) * sizeof(T));
 			data[insert_index] = std::move(value);
