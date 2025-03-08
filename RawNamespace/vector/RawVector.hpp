@@ -115,13 +115,13 @@ namespace raw {
 
 		using Iterator = IteratorBase<T>;
 		using const_iterator = IteratorBase<const T>;
-		using reverse_iterator = ReverseIterator;
-		using const_reverse_iterator = const ReverseIterator;
+		using reverse_iterator = ReverseIterator<T>;
+		using const_reverse_iterator = ReverseIterator<const T>;
 
 		Iterator begin() { return Iterator(data); }
 		Iterator end() { return Iterator(data + size); }
-		Iterator rbegin() { return size > 0 ? reverse_iterator(data + size - 1) : reverse_iterator(data); }
-		Iterator rend() { return reverse_iterator(data - 1); }
+		reverse_iterator rbegin() { return size > 0 ? reverse_iterator(data + size - 1) : reverse_iterator(data); }
+		reverse_iterator rend() { return reverse_iterator(data - 1); }
 
 		Iterator data_get() { return begin(); }
 
@@ -132,8 +132,8 @@ namespace raw {
 		const_iterator end() const { return const_iterator(data + size); }
 		const_iterator cbegin() const { return const_iterator(data); }
 		const_iterator cend() const { return const_iterator(data + size); }
-		const_iterator crbegin() const { return size > 0 ? const_reverse_iterator(data + size - 1) : const_reverse_iterator(data); }
-		const_iterator crend() const { return const_reverse_iterator(data - 1); }
+		const_reverse_iterator crbegin() const { return size > 0 ? const_reverse_iterator(data + size - 1) : const_reverse_iterator(data); }
+		const_reverse_iterator crend() const { return const_reverse_iterator(data - 1); }
 
 		const_iterator data_get() const { return cbegin(); }
 
